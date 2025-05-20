@@ -11,34 +11,53 @@ namespace Dsw2025Ej12.Services;
 
 internal class ExchangeService
 {
-    public decimal GetAverageDollarQuote()
+    private async Task<decimal> GetAverageDollarQuote()
     {
-        var quote1 = QuoteManager.GetDollarQuoteOptionOne();
-        var quote2 = QuoteManager.GetDollarQuoteOptionTwo();
-        var quote3 = QuoteManager.GetDollarQuoteOptionThree();
+        var quoteTask1 = QuoteManager.GetDollarQuoteOptionOneAsync();
+        var quoteTask2 = QuoteManager.GetDollarQuoteOptionTwoAsync();
+        var quoteTask3 = QuoteManager.GetDollarQuoteOptionThreeAsync();
 
-        var list = new[] { quote1, quote2, quote3 };
+        await Task.WhenAll(quoteTask1, quoteTask2, quoteTask3);
+        var list = new[] { await quoteTask1, await quoteTask2, await quoteTask3 };
         return list.Average();
     }
 
-    public List<Product> GetProducts()
+    private async Task<List<Product>> GetProducts()
     {
         var products = new List<Product>();
-        products.AddRange(DataManager.GetProducts()?
-                .Select(p => new Product
-                {
-                    Code = p.Code,
-                    Description = p.Description,
-                    Price = p.Price
-                }) ?? []);
-        products.AddRange(DataService.GetProductsFromFile() ?? []);
+        var task1 = DataManager.GetProductsAsync();
+        var task2 = DataService.GetProductsFromFileAsync();
+        var productTasks = new List<Task> { task1, task2 };
+        while (productTasks.Count > 0)
+        {
+            Task finished = await Task.WhenAny(productTasks);
+            if(finished == task1)
+            {
+                var result1 = await task1;
+                products.AddRange(result1?
+                        .Select(p => new Product
+                        {
+                            Code = p.Code,
+                            Description = p.Description,
+                            Price = p.Price
+                        }) ?? []);
+            }
+            else if(finished == task2)
+            {
+                products.AddRange(await task2 ?? []);
+            }
+            productTasks.Remove(finished);
+        }
         return products;
     }
 
-    public void UpdatePrices()
+    public async Task UpdatePrices()
     {
-        var quote = GetAverageDollarQuote();
-        var products = GetProducts();
+        var quoteTask = GetAverageDollarQuote();
+        var productsTask = GetProducts();
+        await Task.WhenAll(quoteTask, productsTask);  
+        var quote = await quoteTask;
+        var products = await productsTask;  
         products.ForEach(p => p.UpdatePrice(quote));
     }
 }

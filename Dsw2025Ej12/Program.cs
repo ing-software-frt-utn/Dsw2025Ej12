@@ -7,11 +7,12 @@ namespace Dsw2025Ej12
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
+            Console.WriteLine("Conversor de precios ARS -> USD");
             var stopwatch = Stopwatch.StartNew();
             var service = new ExchangeService();
-            service.UpdatePrices();
+            await service.UpdatePrices();
             stopwatch.Stop();
             Console.WriteLine($"Tiempo de ejecución: {stopwatch.ElapsedMilliseconds}");
         }
